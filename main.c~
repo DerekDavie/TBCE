@@ -1,0 +1,178 @@
+/*************************************************************************************
+ * Author: Derek Davie                                                               *
+ * Last Updated: 6-13-16                                                             *
+ * CHIP-8 emulator with direction from:                                              *
+ * http://www.multigesture.net/articles/how-to-write-an-emulator-chip-8-interpreter/ *
+ *************************************************************************************/
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MEMORYSIZE 4096
+#define SCREENSIZE 2048
+
+
+typedef struct chip8 // contains all memory, storage, and other variables for a chip8 system
+{
+  unsigned char v[16]; // 16 registers
+  unsigned char stack[16]; // stack of size 16
+  unsigned short i;
+  unsigned short pc;
+  unsigned char delay;
+  unsigned char sound;
+  unsigned char input[16];
+  unsigned char screen[SCREENSIZE];
+  unsigned char mem[MEMORYSIZE];
+  unsigned char draw; // set to 1 if screen needs to be updated
+}chip8;
+
+int emulateCycle(chip8*);
+int loadProgram(chip8*, char*);
+int initializeGraphics();
+int initializeInput();
+int initializeMyChip(chip8*);
+int draw(chip8*);
+int getInput(chip8*);
+
+int main(int argc, char** argv)
+{
+
+  
+  // initialize graphics and input systems
+  initializeGraphics();
+  initializeInput();
+
+  chip8 myChip8;
+  // initalize myChip8
+  initializeMyChip(&myChip8);
+  
+  // load program into memory
+  loadProgram(&myChip8, "pong");
+
+  while(myChip8.pc != 0)
+    {
+      emulateCycle(&myChip8);
+
+      // Checks if draw flag is set to 1, if not no changes need to be drawn
+      if(myChip8.draw == 0)
+	{
+	  draw(&myChip8);
+	}
+
+      // gets any changes to input
+      getInput(&myChip8);
+    }
+  
+  
+  
+}
+int emulateCycle(chip8* myChip8)
+{
+  short opcode;
+}
+
+int loadProgram(chip8* myChip8, char* fileName)
+{
+  int size;
+  int i;
+  
+  char* buffer;
+
+  if(fileName == NULL)
+    {
+      printf("error no filename passed to loadProgram");
+    }
+
+  // open file with passed name
+  FILE* fp = fopen(fileName, "rb");
+
+  if(fp == NULL)
+    {
+      printf("File Error reading, %s", fileName);
+      return 1;
+    }
+
+  fseek(fp, 0, SEEK_END); // seek to end of file
+  size == ftell(fp); // returns how far into the file we are, because we are at end of file this \
+                     // is size of file
+  rewind(fp); // rewinds file to point to the begining
+
+  buffer = malloc(sizeof(char) * size); // allocate memory for buffer
+  if(buffer == NULL)
+    {
+      printf("error allocating memory");
+      return 1;
+    }
+  fread(buffer, 1, size, fp); // read in program to buffer
+
+  // transfers program data from the buffer to the userspace in memory starting at 0x200
+  for(i = 0; i < size; ++i)
+    {
+      (*myChip8).mem[0x200 + i] = buffer[i];
+    }
+  // free memory no longer being used and close open file
+  free(buffer);
+  fclose(fp);
+}
+
+int initializeMyChip(chip8*  myChip8)
+{
+
+  // chip8 fontset from http://www.multigesture.net/articles/how-to-write-an-emulator-chip-8-interpreter/
+  unsigned char chip8_fontset[80] =
+    { 
+      0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+      0x20, 0x60, 0x20, 0x20, 0x70, // 1
+      0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+      0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+      0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+      0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+      0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+      0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+      0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+      0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+      0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+      0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+      0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+      0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+      0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+      0xF0, 0x80, 0xF0, 0x80, 0x80  // F
+    };
+
+  // next 3 loops set all of the arrays to 0
+  int i;
+  for(i = 0; i < 16; ++i)
+    {
+      (*myChip8).v[i] = 0; 
+      (*myChip8).stack[i] = 0;
+      (*myChip8).input[i] = 0;
+      (*myChip8).mem[i] = 0;
+      (*myChip8).screen[i] = 0;
+    }
+  for(i; i < 2048; ++i)
+    {
+      (*myChip8).mem[i] = 0;
+      (*myChip8).screen[i] = 0;
+    }
+  for(i; i < 4096; ++i)
+    {
+      (*myChip8).mem[i] = 0;
+    }
+
+  // load the fontset into memory
+  for(i = 0; i < 80; ++i)
+    {
+      (*myChip8).mem[i] = chip8_fontset[i];
+    }
+
+  // set pc to 0x200 as this is where the start of the user program will be loaded
+  (*myChip8).pc = 0x200;
+  
+  // set the rest of the variables to 0
+  (*myChip8).i = 0;
+  (*myChip8).delay = 0;
+  (*myChip8).sound = 0;
+  (*myChip8).draw = 0;
+}
+
