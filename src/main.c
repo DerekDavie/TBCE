@@ -92,7 +92,6 @@ int draw(chip8* myChip8)
 		}	
 	}
 	move(33, 0);
-	insch((*myChip8).v[0xf]);
 
 	refresh(); // after the new screen is drawn, refresh the terminal so it show the changes
 	return 1;
